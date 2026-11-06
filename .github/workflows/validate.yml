@@ -17,6 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Docker Compose configuration
+        env:
+          JWT_SECRET: ci-only-not-a-real-secret
+        run: docker compose config --quiet
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -63,3 +68,6 @@ jobs:
 
       - name: Lint Helm chart
         run: helm lint deploy/helm/showcaseme --values deploy/helm/showcaseme/values-prod.yaml
+
+      - name: Render Helm manifests
+        run: helm template showcaseme deploy/helm/showcaseme --namespace showcaseme --values deploy/helm/showcaseme/values-prod.yaml > /tmp/showcaseme-rendered.yaml
