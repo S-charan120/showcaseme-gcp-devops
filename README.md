@@ -8,7 +8,7 @@
 
 > A portfolio-building and publishing application with a GCP delivery platform built around GKE, Terraform, Cloud Build and Argo CD.
 
-Showcaseme lets a professional bring their profile, experience, skills and selected projects together in a public portfolio. The cloud platform in this repository builds the application into containers, provisions its GCP environment, and uses Git as the deployment source of truth.
+Showcaseme lets a professional bring their profile, experience, skills and selected projects together in a public portfolio. The platform code defines the GCP infrastructure and container delivery workflow, with Git as the deployment source of truth. The documented GCP environment is a deployment blueprint and has not yet been provisioned.
 
 ## Application
 
