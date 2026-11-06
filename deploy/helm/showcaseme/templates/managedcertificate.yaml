@@ -1,0 +1,10 @@
+{{- if and .Values.ingress.enabled .Values.ingress.managedCertificate }}
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: showcaseme-managed-cert
+  namespace: {{ .Values.namespace }}
+spec:
+  domains:
+    - {{ .Values.ingress.host | quote }}
+{{- end }}

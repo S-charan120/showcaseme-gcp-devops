@@ -1,0 +1,16 @@
+api:
+  replicaCount: 1
+  image:
+    tag: staging-bootstrap
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+web:
+  replicaCount: 1
+  image:
+    tag: staging-bootstrap
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+ingress:
+  host: staging.portfolio.example.com

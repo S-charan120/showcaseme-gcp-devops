@@ -1,0 +1,17 @@
+api:
+  image:
+    repository: asia-south1-docker.pkg.dev/PROJECT_ID/showcaseme-images/api
+    tag: bootstrap
+  serviceAccount:
+    gcpServiceAccount: showcaseme-api@PROJECT_ID.iam.gserviceaccount.com
+  env:
+    GOOGLE_CLOUD_PROJECT: PROJECT_ID
+    GCS_BUCKET: PROJECT_ID-showcaseme-assets
+  cloudSqlProxy:
+    connectionName: PROJECT_ID:asia-south1:showcaseme-postgres
+web:
+  image:
+    repository: asia-south1-docker.pkg.dev/PROJECT_ID/showcaseme-images/web
+    tag: bootstrap
+ingress:
+  host: portfolio.example.com

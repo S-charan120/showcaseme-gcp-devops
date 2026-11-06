@@ -1,0 +1,10 @@
+{{- if and .Values.ingress.enabled .Values.ingress.forceHttps }}
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: showcaseme-frontend-config
+  namespace: {{ .Values.namespace }}
+spec:
+  redirectToHttps:
+    enabled: true
+{{- end }}
