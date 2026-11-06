@@ -13,7 +13,7 @@ REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/api:COMMIT_SHA
 REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/web:COMMIT_SHA
 ```
 
-Do not use `latest` as a production release identifier.
+The Terraform-managed Docker repository enforces immutable tags. Do not use `latest` as a production release identifier.
 
 ## 2. Configure the GitHub App token
 
@@ -32,7 +32,13 @@ Recommended trigger paths:
 
 The exclusion for `deploy/helm/**` matters. Cloud Build writes an image-promotion commit to that directory; allowing this commit to retrigger the build would create an unnecessary loop.
 
-## 4. Install Argo CD
+## 4. Run the initial image promotion before Argo CD sync
+
+The checked-in production Helm values use `bootstrap` tags as placeholders. After the trigger and GitHub App secret are configured, use the Cloud Build trigger's **Run** action against branch `main` once.
+
+Wait for the build to test the API, build and push both images to Artifact Registry, and commit the resulting source commit SHA tags to `deploy/helm/showcaseme/values-prod.yaml`. Confirm that both production image tags are no longer `bootstrap` and that the tagged images exist in Artifact Registry before the first Argo CD sync. This avoids an initial `ImagePullBackOff` caused by trying to pull placeholder tags.
+
+## 5. Install Argo CD
 
 Install Argo CD in the target GKE cluster using the official installation method for your chosen version. Configure repository access through a scoped GitHub App credential or another approved Git credential mechanism.
 
@@ -46,7 +52,7 @@ kubectl create namespace argocd
 
 If Argo CD is already installed, do not recreate its namespace.
 
-## 5. Configure application secrets and chart values
+## 6. Configure application secrets and chart values
 
 Create the application namespace and runtime secret:
 
@@ -67,7 +73,7 @@ Cloud SQL creates the database and application user. Connect as the administrati
 ALTER DATABASE showcaseme OWNER TO showcaseme_app;
 ```
 
-## 6. Apply the Argo CD application
+## 7. Apply the Argo CD application
 
 ```bash
 kubectl apply -f deploy/argocd/application.yaml
@@ -77,6 +83,6 @@ kubectl -n showcaseme get deployments,services,ingress
 
 The Argo CD application tracks the chart in this repository and uses `values.yaml` plus `values-prod.yaml`. Once sync completes, check API and web readiness before pointing users at the hostname.
 
-## 7. Configure HTTPS
+## 8. Configure HTTPS
 
 Set `ingress.host` to an exact hostname you control, create a public DNS A record pointing to the GKE ingress address, and wait for the GKE ManagedCertificate to become Active. The bundled managed-certificate configuration is for an exact hostname; it does not provide wildcard subdomain certificates.
