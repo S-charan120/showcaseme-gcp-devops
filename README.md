@@ -60,6 +60,7 @@ Cloud Build publishes images and updates the image tags in Git. Argo CD performs
 
 ```text
 .
+├── .github/workflows/validate.yml
 ├── api/
 │   ├── migrations/
 │   ├── src/
@@ -89,7 +90,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). API liveness is available at `/api/health`; readiness is available at `/api/ready`. PostgreSQL runs in a named volume. The local stack does not need GCP credentials; signed Cloud Storage uploads require Application Default Credentials and a configured bucket.
+Open [http://localhost:8080](http://localhost:8080). Application routes are served through the web container. The API exposes operational `/health` and `/ready` endpoints on its own port 8081; Kubernetes probes call those endpoints directly, and `/ready` checks PostgreSQL. The web Nginx container has a separate `/health` response that only confirms Nginx is responding. There are no public `/api/health` or `/api/ready` API routes.
+
+PostgreSQL runs in a named volume. The local stack does not need GCP credentials; signed Cloud Storage uploads require Application Default Credentials and a configured bucket.
 
 To run API checks directly:
 
@@ -116,7 +119,7 @@ GKE, Cloud NAT, Cloud SQL, external load balancing and storage can incur charges
 
 ## CI checks
 
-GitHub Actions validates the API, builds the frontend and both Docker images, formats and validates Terraform, and lints the Helm chart. Cloud Build is the GCP image publication and GitOps promotion pipeline.
+GitHub Actions validates Docker Compose, the API, the frontend, both Docker images, Terraform formatting/validation, and Helm linting/rendering. Cloud Build is the GCP image publication and GitOps promotion pipeline.
 
 ## Operational notes
 
