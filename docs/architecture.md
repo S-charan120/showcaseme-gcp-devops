@@ -2,7 +2,7 @@
 
 ## Product flow
 
-The React application provides account registration/sign-in, a profile editor, experience and project capture, skills, template selection, draft management, publish/unpublish, and a public portfolio route. Public pages are served by slug under the application hostname. Dynamic per-user subdomains require a separate DNS/certificate design; the bundled GKE ManagedCertificate is configured for an exact hostname.
+The React application provides account registration/sign-in, a profile editor, experience and project capture, skills, template selection, draft management, publish/unpublish, and a public portfolio view. The frontend selects a public portfolio with the `?portfolio=<slug>` query parameter and loads its data from the API endpoint `/api/public/:slug`; it does not implement a clean `/<slug>` path or per-user subdomains. Dynamic per-user hostnames require a separate DNS/certificate design; the bundled GKE ManagedCertificate is configured for an exact hostname.
 
 ## Runtime components
 
