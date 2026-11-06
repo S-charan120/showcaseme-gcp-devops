@@ -17,7 +17,7 @@ Showcaseme lets a professional bring their profile, experience, skills and selec
 - Add professional experience, skills and project links.
 - Save a draft, publish it, or unpublish it.
 - Render published portfolios through a public route.
-- Request short-lived Cloud Storage upload URLs for optional portfolio images.
+- API includes an authenticated endpoint for requesting short-lived Cloud Storage upload URLs. The web editor does not yet include an image-upload interface.
 
 The API stores account and portfolio data in PostgreSQL. The Cloud Storage bucket is private; the API signs short-lived upload URLs using its GKE workload identity.
 
