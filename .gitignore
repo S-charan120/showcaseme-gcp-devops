@@ -6,5 +6,8 @@ coverage/
 *.tfstate
 *.tfstate.*
 terraform.tfvars
+infra/terraform/backend.tf
+tfplan
+*.tfplan
 *.log
 .DS_Store
