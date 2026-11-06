@@ -16,7 +16,7 @@ Showcaseme lets a professional bring their profile, experience, skills and selec
 - Create and edit a portfolio with a public slug.
 - Add professional experience, skills and project links.
 - Save a draft, publish it, or unpublish it.
-- Render published portfolios through a public route.
+- Render published portfolios through the shareable `?portfolio=<slug>` URL parameter.
 - API includes an authenticated endpoint for requesting short-lived Cloud Storage upload URLs. The web editor does not yet include an image-upload interface.
 
 The API stores account and portfolio data in PostgreSQL. The Cloud Storage bucket is private; the API signs short-lived upload URLs using its GKE workload identity.
