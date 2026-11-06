@@ -1,9 +1,9 @@
-const slugPattern = /^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])?$/;
+const slugPattern = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
 const allowedTemplates = new Set(['minimal', 'editorial', 'technical']);
 function validateRegistration(input) {
   const errors = [];
   if (!input || typeof input !== 'object') return ['JSON body is required'];
-  if (typeof input.email !== 'string' || input.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) errors.push('email must be valid');
+  if (typeof input.email !== 'string' || input.email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(input.email)) errors.push('email must be valid');
   if (typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 72) errors.push('password must be 12-72 characters');
   return errors;
 }
@@ -17,7 +17,7 @@ function validatePortfolio(input) {
   if (typeof input.profession !== 'string' || input.profession.length > 100) errors.push('profession must be at most 100 characters');
   if (!Array.isArray(input.experience) || input.experience.length > 20 || input.experience.some(x => !x || typeof x.role !== 'string' || x.role.length > 120 || typeof x.organization !== 'string' || x.organization.length > 120 || typeof x.description !== 'string' || x.description.length > 1200)) errors.push('experience must contain up to 20 valid records');
   if (!Array.isArray(input.skills) || input.skills.length > 40 || input.skills.some(x => typeof x !== 'string' || x.trim().length < 1 || x.length > 50)) errors.push('skills must contain up to 40 short strings');
-  if (!Array.isArray(input.projects) || input.projects.length > 20 || input.projects.some(x => !x || typeof x.title !== 'string' || x.title.length > 120 || typeof x.description !== 'string' || x.description.length > 1200 || (x.url && (typeof x.url !== 'string' || !/^https:\/\//.test(x.url))))) errors.push('projects must contain up to 20 valid records with HTTPS URLs');
+  if (!Array.isArray(input.projects) || input.projects.length > 20 || input.projects.some(x => !x || typeof x.title !== 'string' || x.title.length > 120 || typeof x.description !== 'string' || x.description.length > 1200 || (x.url && (typeof x.url !== 'string' || !/^https:\\/\\//.test(x.url))))) errors.push('projects must contain up to 20 valid records with HTTPS URLs');
   if (input.templateKey !== undefined && !allowedTemplates.has(input.templateKey)) errors.push('templateKey must be minimal, editorial, or technical');
   return errors;
 }
