@@ -1,33 +1,87 @@
-# Showcaseme — Portfolio Building & Publishing Platform
+# Showcaseme
 
-Showcaseme enables professionals to create and publish personalized portfolios using profile details, experience, projects, skills and profession-oriented layouts. This repository pairs the application with a GCP delivery platform that follows the project architecture in my GCP DevOps resume.
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)
+![Google Cloud](https://img.shields.io/badge/Google%20Cloud-GKE-4285F4?logo=googlecloud&logoColor=white)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)
+![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D?logo=argo&logoColor=white)
 
-## Resume-aligned stack
+> A portfolio-building and publishing application with a GCP delivery platform built around GKE, Terraform, Cloud Build and Argo CD.
 
-React · Node.js REST API · Docker · GCP · GKE · Cloud Build · Artifact Registry · Helm · Argo CD · Terraform · VPC · IAM · Workload Identity · Cloud SQL (PostgreSQL) · Cloud Storage · Cloud Logging · Cloud Monitoring.
+Showcaseme lets a professional bring their profile, experience, skills and selected projects together in a public portfolio. The cloud platform in this repository builds the application into containers, provisions its GCP environment, and uses Git as the deployment source of truth.
 
-## Delivery path
+## Application
 
-1. A source change triggers Cloud Build. API unit tests and syntax checks run before images are built.
-2. Cloud Build builds API and web images and publishes immutable commit-SHA tags to Artifact Registry.
-3. The pipeline promotes those exact image tags in the Git-managed Helm values file.
-4. Argo CD detects the Git change and reconciles Helm resources on GKE.
-5. Terraform provisions a custom VPC, segmented GKE subnet and secondary ranges, Cloud NAT, private-node GKE, autoscaling node pool, Artifact Registry, service accounts, private Cloud SQL, and a private Cloud Storage bucket.
-6. The API uses a Kubernetes ServiceAccount mapped through Workload Identity to narrowly scoped Google service-account permissions. Cloud SQL is accessed through the Cloud SQL Auth Proxy sidecar over private IP.
+- Register and sign in to manage portfolios.
+- Create and edit a portfolio with a public slug.
+- Add professional experience, skills and project links.
+- Save a draft, publish it, or unpublish it.
+- Render published portfolios through a public route.
+- Request short-lived Cloud Storage upload URLs for optional portfolio images.
 
-## Repository map
+The API stores account and portfolio data in PostgreSQL. The Cloud Storage bucket is private; the API signs short-lived upload URLs using its GKE workload identity.
 
-- `api/` — Node.js REST API, auth, portfolio management, signed Cloud Storage upload URLs, SQL migrations and tests.
-- `web/` — React profile builder, authenticated content management, public portfolio renderer and Nginx reverse proxy.
-- `infra/terraform/` — reusable GCP infrastructure foundation.
-- `deploy/helm/showcaseme/` — reusable Kubernetes chart with probes, resource sizing, HPA, PDB, NetworkPolicy and HTTPS ingress.
-- `deploy/argocd/` — Argo CD Application for GitOps reconciliation.
-- `ci/cloudbuild.yaml` — test, build, publish and GitOps promotion pipeline.
-- `docs/` — architecture, setup, runbook, security, CI/CD, release/rollback, and troubleshooting.
+## Architecture
 
-## Local development
+```mermaid
+flowchart TB
+    Dev[Developer] --> Git[GitHub repository]
+    Git --> CB[Cloud Build]
+    CB -->|test, build, tag| AR[Artifact Registry]
+    CB -->|promote image SHA| Git
+    Git --> Argo[Argo CD]
+    Argo -->|Helm sync| GKE[GKE cluster]
+    Terraform[Terraform] --> VPC[VPC, subnet, NAT]
+    Terraform --> GKE
+    Terraform --> SQL[(Private Cloud SQL)]
+    Terraform --> GCS[(Private Cloud Storage)]
+    Browser[Browser] --> LB[HTTPS load balancer]
+    LB --> Web[React / Nginx]
+    Web --> API[Node.js API]
+    API --> SQL
+    API --> GCS
+```
 
-Prerequisites: Docker Engine and Docker Compose.
+### Delivery flow
+
+| Stage | Tooling | Result |
+|---|---|---|
+| Source | GitHub | Versioned application and Helm configuration |
+| Build and test | Cloud Build | API tests, container builds and immutable commit-SHA tags |
+| Image storage | Artifact Registry | Versioned API and web images |
+| Infrastructure | Terraform | VPC, GKE, IAM, Cloud SQL and Cloud Storage |
+| Release packaging | Helm | Shared chart with environment values, probes, resources, HPA and PDB |
+| Deployment | Argo CD | GitOps reconciliation of the Helm release |
+| Operations | Cloud Logging and Cloud Monitoring | Workload logs, cluster metrics and alert policies |
+
+Cloud Build publishes images and updates the image tags in Git. Argo CD performs the rollout; the build pipeline does not run `kubectl apply` or `helm upgrade` against the cluster.
+
+## Repository layout
+
+```text
+.
+├── api/
+│   ├── migrations/
+│   ├── src/
+│   └── test/
+├── web/
+│   └── src/
+├── infra/terraform/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── iam.tf
+│   └── monitoring.tf
+├── deploy/
+│   ├── argocd/
+│   └── helm/showcaseme/
+├── ci/cloudbuild.yaml
+└── docs/
+```
+
+## Run locally
+
+Requirements: Docker Engine and Docker Compose.
 
 ```bash
 cp .env.example .env
@@ -35,23 +89,45 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. API liveness is `/api/health`; readiness is `/api/ready`. PostgreSQL is persisted in a named Docker volume. Local mode supports profile editing and slug-based public pages. Cloud Storage signed uploads require Application Default Credentials and a configured bucket.
+Open [http://localhost:8080](http://localhost:8080). API liveness is available at `/api/health`; readiness is available at `/api/ready`. PostgreSQL runs in a named volume. The local stack does not need GCP credentials; signed Cloud Storage uploads require Application Default Credentials and a configured bucket.
 
-## GCP deployment overview
+To run API checks directly:
 
-1. Create a dedicated GCP project with billing enabled. The Terraform configuration enables the required APIs.
-2. Configure the remote GCS Terraform backend using `infra/terraform/backend.tf.example`. Keep state access restricted; state can contain sensitive infrastructure values.
-3. Copy `terraform.tfvars.example` to `terraform.tfvars`; set the project ID, region, a narrow administrator CIDR, and a strong database password through a secure variable injection mechanism.
-4. Run `terraform init`, `terraform validate`, `terraform plan`, inspect the plan and cost estimate, then apply in a non-production project.
-5. Create a short-lived GitHub App installation token secret in Secret Manager. Configure the Cloud Build trigger to use the dedicated Cloud Build service account and run only for application/CI paths so the deployment-values commit does not retrigger itself.
-6. Configure PostgreSQL database ownership: connect as the Cloud SQL administrative user and run `ALTER DATABASE showcaseme OWNER TO showcaseme_app;` so the application role can create its migration tables. Create Kubernetes Secret `showcaseme-runtime` with `DATABASE_URL` and `JWT_SECRET`. Set `GCS_BUCKET` to the Terraform output. Apply Argo CD after Argo CD is installed in the target cluster.
-7. Configure the exact DNS hostname and domain in Helm values for the GKE-managed HTTPS certificate. Wait for certificate provisioning before switching user traffic.
-8. Validate rollout health, autoscaler behaviour, Cloud Logging entries, Cloud Monitoring alerts, Cloud SQL backups and a restore drill.
+```bash
+cd api
+npm install
+npm test
+npm run check
+```
 
-## Release and rollback
+## Deploy to GCP
 
-Images are tagged with the source commit SHA; do not use `latest` for release promotion. Cloud Build publishes both images and updates the matching immutable tags in `deploy/helm/showcaseme/values-prod.yaml`. Argo CD is the only production deployment controller. For rollback, revert the promotion commit; Argo CD reconciles the prior chart values. Do not make drift-inducing imperative production changes with `kubectl edit`.
+The deployment guide is in [infra/terraform/README.md](infra/terraform/README.md). In brief:
 
-## Important deployment note
+1. Create a dedicated GCP project and configure a secured remote GCS Terraform state bucket.
+2. Set the project, region, trusted administrator CIDR and database password in a local tfvars file (never commit it).
+3. Review and apply the Terraform plan in a non-production project.
+4. Configure the Cloud Build trigger with its dedicated service account and the narrowly scoped GitHub App token stored in Secret Manager.
+5. Create the Kubernetes runtime secret and install Argo CD.
+6. Apply the Argo CD Application, set the domain in Helm values, and configure DNS for the GKE HTTPS load balancer.
+7. Verify deployment health, Cloud SQL connectivity, Workload Identity, logs and monitoring alerts.
 
-This repository is an implementation and reproducible deployment blueprint, not evidence that GCP resources are already provisioned or that the service has passed a production certification. Terraform, GKE policies, Cloud SQL connectivity, IAM scopes, pipeline credentials, DNS and certificate configuration must be validated in your own GCP project. GKE, Cloud NAT, Cloud SQL, external HTTPS load balancing and logging/monitoring can incur charges. Review `docs/security.md` and `infra/terraform/README.md` before applying resources.
+GKE, Cloud NAT, Cloud SQL, external load balancing and storage can incur charges. Check the Terraform plan and current GCP pricing before applying.
+
+## CI checks
+
+GitHub Actions validates the API, builds the frontend and both Docker images, formats and validates Terraform, and lints the Helm chart. Cloud Build is the GCP image publication and GitOps promotion pipeline.
+
+## Operational notes
+
+- Production image references use Git commit SHAs rather than `latest`.
+- API pods use Workload Identity and a Cloud SQL Auth Proxy sidecar; Cloud SQL has no public IPv4 address.
+- Cloud Storage has uniform bucket-level access and Public Access Prevention.
+- HPA and node-pool autoscaling are separate controls; pod requests/limits and PDBs are included in the chart.
+- Rollback is a Git revert of the image-promotion commit. Argo CD then reconciles the previous release.
+
+See [docs/runbook.md](docs/runbook.md), [docs/troubleshooting.md](docs/troubleshooting.md), and [docs/release-and-rollback.md](docs/release-and-rollback.md) before operating a cluster.
+
+## Scope and status
+
+This is a hands-on portfolio implementation and deployment blueprint. No GCP resources have been provisioned by publishing the repository. Before public production use, configure real project values, DNS and TLS, secret-manager integration, branch protection, workload security tests, dependency/image scanning, and restore drills. The example does not claim a compliance certification or a live production service.
