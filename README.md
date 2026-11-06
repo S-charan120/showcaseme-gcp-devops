@@ -102,7 +102,7 @@ npm run check
 
 ## Deploy to GCP
 
-The deployment guide is in [infra/terraform/README.md](infra/terraform/README.md). In brief:
+The phased deployment guide is in [docs/gcp/README.md](docs/gcp/README.md), with infrastructure details in [infra/terraform/README.md](infra/terraform/README.md). In brief:
 
 1. Create a dedicated GCP project and configure a secured remote GCS Terraform state bucket.
 2. Set the project, region, trusted administrator CIDR and database password in a local tfvars file (never commit it).
