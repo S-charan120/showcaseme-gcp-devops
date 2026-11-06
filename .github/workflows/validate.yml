@@ -1,0 +1,64 @@
+name: Showcaseme Repository Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test and check API
+        working-directory: api
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+          npm run check
+
+      - name: Build React frontend
+        working-directory: web
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build API container
+        run: docker build -t showcaseme-api:ci ./api
+
+      - name: Build web container
+        run: docker build -t showcaseme-web:ci ./web
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Check Terraform formatting
+        working-directory: infra/terraform
+        run: terraform fmt -check -recursive
+
+      - name: Validate Terraform configuration
+        working-directory: infra/terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.16.4"
+
+      - name: Lint Helm chart
+        run: helm lint deploy/helm/showcaseme --values deploy/helm/showcaseme/values-prod.yaml
