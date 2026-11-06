@@ -53,6 +53,43 @@ resource "google_compute_subnetwork" "gke" {
   }
 }
 
+resource "google_compute_firewall" "allow_internal" {
+  name    = "${var.network_name}-allow-internal"
+  network = google_compute_network.vpc.id
+
+  direction     = "INGRESS"
+  priority      = 1000
+  source_ranges = ["10.10.0.0/20", "10.20.0.0/16"]
+  target_tags   = ["showcaseme-gke-node"]
+
+  allow {
+    protocol = "tcp"
+  }
+
+  allow {
+    protocol = "udp"
+  }
+
+  allow {
+    protocol = "icmp"
+  }
+}
+
+resource "google_compute_firewall" "allow_gke_health_checks" {
+  name    = "${var.network_name}-allow-health-checks"
+  network = google_compute_network.vpc.id
+
+  direction     = "INGRESS"
+  priority      = 1000
+  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
+  target_tags   = ["showcaseme-gke-node"]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080", "8081", "30000-32767"]
+  }
+}
+
 resource "google_compute_router" "router" {
   name    = "${var.network_name}-router"
   region  = var.region
@@ -92,8 +129,7 @@ resource "google_service_account" "gke_nodes" {
 
 resource "google_project_iam_member" "node_roles" {
   for_each = toset([
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter",
+    "roles/container.defaultNodeServiceAccount",
     "roles/artifactregistry.reader"
   ])
   project = var.project_id
@@ -123,7 +159,7 @@ resource "google_container_cluster" "gke" {
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = false
-    master_ipv4_cidr_block = "172.16.0.0/28"
+    master_ipv4_cidr_block  = "172.16.0.0/28"
   }
 
   master_authorized_networks_config {
@@ -135,10 +171,6 @@ resource "google_container_cluster" "gke" {
 
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"
-  }
-
-  network_policy_config {
-    disabled = false
   }
 
   network_policy {
@@ -153,10 +185,13 @@ resource "google_container_cluster" "gke" {
     http_load_balancing {
       disabled = false
     }
+    network_policy_config {
+      disabled = false
+    }
   }
 
   logging_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
+    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
   }
 
   monitoring_config {
@@ -201,6 +236,7 @@ resource "google_container_node_pool" "primary" {
 
   node_config {
     machine_type    = var.node_machine_type
+    tags            = ["showcaseme-gke-node"]
     service_account = google_service_account.gke_nodes.email
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
     labels          = { workload = "showcaseme" }
@@ -350,6 +386,12 @@ resource "google_project_iam_member" "cloudbuild_artifact_writer" {
 resource "google_project_iam_member" "cloudbuild_logging" {
   project = var.project_id
   role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
+resource "google_project_iam_member" "cloudbuild_builder" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.builder"
   member  = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
 
