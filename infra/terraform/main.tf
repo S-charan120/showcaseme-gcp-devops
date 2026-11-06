@@ -119,7 +119,12 @@ resource "google_artifact_registry_repository" "images" {
   repository_id = "showcaseme-images"
   description   = "Immutable application container images for Showcaseme"
   format        = "DOCKER"
-  depends_on    = [google_project_service.apis]
+
+  docker_config {
+    immutable_tags = true
+  }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_service_account" "gke_nodes" {
