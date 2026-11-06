@@ -39,7 +39,7 @@ Review the plan and cost estimate before apply. GKE, nodes, Cloud NAT, Cloud SQL
 1. Add a short-lived GitHub App installation token (contents:write only for this repository) as a new version of the Secret Manager secret output by Terraform.
 2. Configure the Cloud Build trigger to use the cloudbuild_service_account output and trigger only when api/**, web/**, or ci/cloudbuild.yaml changes. Do not trigger on deploy/helm/**; the promotion commit must not recursively trigger another build.
 3. Create Kubernetes Secret showcaseme-runtime in namespace showcaseme with DATABASE_URL and JWT_SECRET. Example URL: postgres://showcaseme_app:URL_ENCODED_PASSWORD@127.0.0.1:5432/showcaseme. Cloud SQL Auth Proxy runs as a sidecar and uses private IP.
-4. Set chart values api.cloudSql.connectionName, api.env.GCS_BUCKET, api.env.GOOGLE_CLOUD_PROJECT, and API Google service account annotation from Terraform outputs.
+4. Set the Helm values api.cloudSqlProxy.connectionName to the Terraform output cloud_sql_connection_name, api.env.GCS_BUCKET to asset_bucket, api.env.GOOGLE_CLOUD_PROJECT to project_id, and api.serviceAccount.gcpServiceAccount to api_workload_service_account.
 5. Install Argo CD, configure a repository credential using a scoped GitHub App token, then apply deploy/argocd/application.yaml.
 6. Set ingress.host to a domain you control, create a DNS A record to the ingress IP, and wait for the GKE-managed certificate to become Active.
 
