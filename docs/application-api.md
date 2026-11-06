@@ -1,6 +1,8 @@
 # Application API
 
-All routes are prefixed with /api. Authenticated routes accept Authorization: Bearer access-token. Tokens expire after 15 minutes.
+All application routes are prefixed with /api. Authenticated routes accept Authorization: Bearer access-token. Tokens expire after 15 minutes.
+
+The Express API also exposes operational endpoints GET /health and GET /ready on port 8081. Kubernetes probes call these container endpoints directly; /ready checks the PostgreSQL connection. The web Nginx container exposes its own /health response, which is separate from API readiness.
 
 ## Identity
 - POST /auth/register — email plus password (12–72 characters); returns a short-lived access token.
