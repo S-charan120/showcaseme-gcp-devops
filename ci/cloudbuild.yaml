@@ -24,11 +24,11 @@ steps:
     args:
       - -ceu
       - |
-        if gcloud artifacts docker images describe "$API_IMAGE" --format='value(image_summary.digest)' >/dev/null 2>&1; then
+        if gcloud artifacts docker images describe "$$API_IMAGE" --format='value(image_summary.digest)' >/dev/null 2>&1; then
           echo "API image already exists for $COMMIT_SHA; skipping immutable tag publication."
           touch /workspace/api-image-exists
         fi
-        if gcloud artifacts docker images describe "$WEB_IMAGE" --format='value(image_summary.digest)' >/dev/null 2>&1; then
+        if gcloud artifacts docker images describe "$$WEB_IMAGE" --format='value(image_summary.digest)' >/dev/null 2>&1; then
           echo "Web image already exists for $COMMIT_SHA; skipping immutable tag publication."
           touch /workspace/web-image-exists
         fi
@@ -41,10 +41,10 @@ steps:
       - -ceu
       - |
         if [ -f /workspace/api-image-exists ]; then
-          echo "Reusing immutable API image $API_IMAGE"
+          echo "Reusing immutable API image $$API_IMAGE"
         else
-          docker build --pull -t "$API_IMAGE" api
-          docker push "$API_IMAGE"
+          docker build --pull -t "$$API_IMAGE" api
+          docker push "$$API_IMAGE"
         fi
   - id: build-push-web
     name: gcr.io/cloud-builders/docker
@@ -55,10 +55,10 @@ steps:
       - -ceu
       - |
         if [ -f /workspace/web-image-exists ]; then
-          echo "Reusing immutable web image $WEB_IMAGE"
+          echo "Reusing immutable web image $$WEB_IMAGE"
         else
-          docker build --pull -t "$WEB_IMAGE" web
-          docker push "$WEB_IMAGE"
+          docker build --pull -t "$$WEB_IMAGE" web
+          docker push "$$WEB_IMAGE"
         fi
   - id: promote-gitops
     name: python:3.12-alpine
@@ -70,26 +70,35 @@ steps:
       - -ceu
       - |
         apk add --no-cache git
-        AUTH_HEADER=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\\n')
-        git -c http.extraheader="AUTHORIZATION: basic $AUTH_HEADER" clone https://github.com/S-charan120/showcaseme-gcp-devops.git /workspace/gitops
+        AUTH_HEADER=$$(printf 'x-access-token:%s' "$$GITHUB_TOKEN" | base64 | tr -d '\\n')
+        git -c http.extraheader="AUTHORIZATION: basic $$AUTH_HEADER" clone https://github.com/S-charan120/showcaseme-gcp-devops.git /workspace/gitops
         cd /workspace/gitops
         git fetch origin main
         git checkout -B gitops-promotion origin/main
+        CURRENT_MAIN_SHA=$$(git rev-parse origin/main)
+        if [ "$$PROMOTED_SHA" != "$$CURRENT_MAIN_SHA" ]; then
+          echo "Build commit is no longer the current main revision; skipping stale promotion."
+          exit 0
+        fi
+        if ! git merge-base --is-ancestor "$$PROMOTED_SHA" origin/main; then
+          echo "Build commit is not in the current main history; skipping promotion."
+          exit 0
+        fi
         git config user.name "showcaseme-cloudbuild[bot]"
         git config user.email "showcaseme-cloudbuild[bot]@users.noreply.github.com"
-        CURRENT_API_SHA=$(awk '/^api:$/ {found=1; next} /^web:$/ {found=0} found && /^    tag: / {print $2; exit}' deploy/helm/showcaseme/values-prod.yaml)
-        CURRENT_WEB_SHA=$(awk '/^web:$/ {found=1; next} found && /^    tag: / {print $2; exit}' deploy/helm/showcaseme/values-prod.yaml)
-        test -n "$CURRENT_API_SHA" && test -n "$CURRENT_WEB_SHA"
-        if [ "$CURRENT_API_SHA" != "$CURRENT_WEB_SHA" ]; then
+        CURRENT_API_SHA=$$(awk '/^api:$/ {found=1; next} /^web:$/ {found=0} found && /^    tag: / {print $$2; exit}' deploy/helm/showcaseme/values-prod.yaml)
+        CURRENT_WEB_SHA=$$(awk '/^web:$/ {found=1; next} found && /^    tag: / {print $$2; exit}' deploy/helm/showcaseme/values-prod.yaml)
+        test -n "$$CURRENT_API_SHA" && test -n "$$CURRENT_WEB_SHA"
+        if [ "$$CURRENT_API_SHA" != "$$CURRENT_WEB_SHA" ]; then
           echo "API and web production image tags are inconsistent; refusing promotion."
           exit 1
         fi
-        if [ "$CURRENT_API_SHA" != "bootstrap" ] && [ "$CURRENT_API_SHA" != "$PROMOTED_SHA" ]; then
-          if git merge-base --is-ancestor "$PROMOTED_SHA" "$CURRENT_API_SHA"; then
-            echo "Build $PROMOTED_SHA is older than the current production image; skipping stale promotion."
+        if [ "$$CURRENT_API_SHA" != "bootstrap" ] && [ "$$CURRENT_API_SHA" != "$$PROMOTED_SHA" ]; then
+          if git merge-base --is-ancestor "$$PROMOTED_SHA" "$$CURRENT_API_SHA"; then
+            echo "Build $$PROMOTED_SHA is older than the current production image; skipping stale promotion."
             exit 0
           fi
-          if ! git merge-base --is-ancestor "$CURRENT_API_SHA" "$PROMOTED_SHA"; then
+          if ! git merge-base --is-ancestor "$$CURRENT_API_SHA" "$$PROMOTED_SHA"; then
             echo "Promotion history diverged; refusing to overwrite production values."
             exit 1
           fi
@@ -98,7 +107,7 @@ steps:
         git add deploy/helm/showcaseme/values-prod.yaml
         if git diff --cached --quiet; then echo "No image tag change"; exit 0; fi
         git commit -m "deploy: promote images $$PROMOTED_SHA"
-        git -c http.extraheader="AUTHORIZATION: basic $AUTH_HEADER" push origin HEAD:main
+        git -c http.extraheader="AUTHORIZATION: basic $$AUTH_HEADER" push origin HEAD:main
 availableSecrets:
   secretManager:
     - versionName: projects/$PROJECT_ID/secrets/showcaseme-github-app-token/versions/latest

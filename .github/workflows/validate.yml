@@ -54,6 +54,13 @@ jobs:
           assert api.count("docker push") == 1 and web.count("docker push") == 1, "each image must have exactly one conditional push"
           assert all("COMMIT_SHA" in "\n".join(step.get("env", [])) for step in (by_id["check-existing-images"], by_id["build-push-api"], by_id["build-push-web"])), "images must use full source commit SHA tags"
           assert "git merge-base --is-ancestor" in promote, "stale builds must not roll back a newer GitOps promotion"
+          assert "$API_IMAGE" in check and "$WEB_IMAGE" in check, "Cloud Build shell image variables must be escaped from substitutions"
+          assert "$API_IMAGE" in api and "$WEB_IMAGE" in web, "build/push scripts must use escaped image variables"
+          assert "$GITHUB_TOKEN" in promote and "$AUTH_HEADER" in promote, "secret/token shell variables must be escaped"
+          assert "$2" in promote and "$CURRENT_API_SHA" in promote, "awk and current-image shell variables must be escaped"
+          assert "CURRENT_MAIN_SHA" in promote and "git rev-parse origin/main" in promote, "only current main revision may promote"
+          assert "$CURRENT_MAIN_SHA" in promote and "$PROMOTED_SHA" in promote, "current main and promotion shell variables must be escaped"
+          assert "$PROMOTED_SHA" in promote, "promotion shell variable must be escaped"
           print("Cloud Build YAML parses; full-SHA publication, retry-safe immutable tags, single push path and stale-promotion guard are present.")
           PY
 
