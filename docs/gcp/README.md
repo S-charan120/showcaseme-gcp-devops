@@ -43,4 +43,4 @@ GitHub -------------> Argo CD -----> GKE
 - Use a GitHub App installation token with access limited to this repository.
 - Review the Terraform plan and current GCP pricing before creating resources.
 
-The repository is a learning and portfolio environment. The steps do not create a live production service automatically, and they do not replace a security review or restore test.
+Use this guide alongside a security review and restore testing before public operation.
