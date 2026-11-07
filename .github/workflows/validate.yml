@@ -82,6 +82,9 @@ jobs:
             output="/tmp/showcaseme-${overlay%.yaml}.yaml"
             helm template showcaseme "$CHART" --namespace showcaseme --values "$CHART/$overlay" > "$output"
           done
+          helm template showcaseme "$CHART" --namespace showcaseme \
+            --set api.autoscaling.enabled=false \
+            --set web.autoscaling.enabled=false > /tmp/showcaseme-fixed-replicas.yaml
           python3 - <<'PY'
           from pathlib import Path
 
@@ -95,5 +98,13 @@ jobs:
               assert all(not any(line.strip().startswith("replicas:") for line in doc.splitlines()) for doc in deployments), (
                   f"{profile}: HPA-enabled Deployment must not set spec.replicas"
               )
-          print("Default, staging and production Helm values render successfully; HPAs own replica counts.")
+          fixed = Path("/tmp/showcaseme-fixed-replicas.yaml").read_text(encoding="utf-8")
+          fixed_documents = [doc for doc in fixed.split("---") if doc.strip()]
+          fixed_deployments = [doc for doc in fixed_documents if "kind: Deployment" in doc.splitlines()]
+          fixed_hpas = [doc for doc in fixed_documents if "kind: HorizontalPodAutoscaler" in doc.splitlines()]
+          assert len(fixed_deployments) == 2, "fixed-replica mode: expected API and web Deployments"
+          assert not fixed_hpas, "fixed-replica mode: HPAs must be disabled"
+          assert all(any(line.strip() == "replicas: 2" for line in doc.splitlines()) for doc in fixed_deployments),
+              "fixed-replica mode: api/web replicaCount defaults must render"
+          print("Default/staging/production HPA mode and fixed-replica mode rendered and validated.")
           PY
