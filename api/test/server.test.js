@@ -1,8 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { app, pool } = require('../src/server');
+const { app } = require('../src/server');
 
-test.after(async () => pool.end());
 async function withServer(t, run) {
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
