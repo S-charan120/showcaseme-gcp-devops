@@ -45,8 +45,4 @@ flowchart TB
 
 ## Resilience and scaling
 
-Readiness/liveness probes gate traffic and detect process failures. Rolling updates use `maxUnavailable=0`; API and web HPAs scale on CPU, while node-pool autoscaling manages VM capacity. PDBs protect availability during voluntary disruptions. Cloud SQL backups/PITR and bucket versioning are configured, but restore testing is an operator task.
-
-## Validation versus deployment
-
-GitHub Actions validates source, Docker builds, Terraform and Helm rendering. Cloud Build publishes/promotes images; Argo CD deploys them. These definitions and green validation checks do not by themselves prove that GCP resources were provisioned or a live rollout succeeded.
+Readiness/liveness probes gate traffic and detect process failures. Rolling updates use `maxUnavailable=0`; API and web HPAs scale on CPU, while node-pool autoscaling manages VM capacity. PDBs protect availability during voluntary disruptions. Cloud SQL backups/PITR and bucket versioning are configured; restore procedures are documented in the operations guide.
