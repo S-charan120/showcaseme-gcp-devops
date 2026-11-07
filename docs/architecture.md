@@ -10,7 +10,7 @@ The React application supports account registration/sign-in, profile editing, ex
 - **API:** Node.js/Express REST service with bcrypt password hashing, short-lived JWTs, ownership-scoped CRUD and validation.
 - **Database:** Cloud SQL for PostgreSQL. SQL migrations run from the API startup path.
 - **Assets:** Private Cloud Storage bucket; API issues short-lived signed upload URLs.
-- **GKE:** Web/API Deployments, Services and Ingress. Helm configures probes, rolling updates, resource requests/limits, HPA, PDB, ServiceAccounts and NetworkPolicy.
+- **GKE:** Web/API Deployments, Services and Ingress. Helm configures probes, rolling updates, resource requests/limits, HPA, PDB, ServiceAccounts and NetworkPolicy. When HPA is enabled, the chart omits Deployment `spec.replicas` so the autoscaler is the sole replica controller; `replicaCount` applies when autoscaling is disabled.
 - **Database connectivity:** Cloud SQL Auth Proxy sidecar uses private IP. The API Kubernetes ServiceAccount is mapped to a Google service account using Workload Identity.
 - **Delivery:** Cloud Build tests and builds commit-SHA images, pushes to Artifact Registry and commits image tags to Git. Argo CD reconciles the Helm release from Git.
 
