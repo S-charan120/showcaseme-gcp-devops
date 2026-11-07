@@ -2,22 +2,51 @@
 
 ## Product flow
 
-The React application provides account registration/sign-in, a profile editor, experience and project capture, skills, template selection, draft management, publish/unpublish, and a public portfolio view. The frontend selects a public portfolio with the `?portfolio=<slug>` query parameter and loads its data from the API endpoint `/api/public/:slug`; it does not implement a clean `/<slug>` path or per-user subdomains. Dynamic per-user hostnames require a separate DNS/certificate design; the bundled GKE ManagedCertificate is configured for an exact hostname.
+The React application supports account registration/sign-in, profile editing, experience and project capture, skills, template selection, draft management, publish/unpublish, and a public portfolio view. Public portfolios are selected through the `?portfolio=<slug>` query parameter and loaded from `/api/public/:slug`; this repository does not implement clean `/<slug>` paths or per-user subdomains. Dynamic hostnames need a separate DNS/certificate design. The bundled GKE ManagedCertificate covers one exact hostname.
 
 ## Runtime components
 
-- React SPA, served by Nginx.
-- Node.js/Express REST API with short-lived JWT access tokens, password hashing, ownership-scoped portfolio CRUD, and validation.
-- Cloud SQL for PostgreSQL stores account and portfolio data. SQL migrations are applied by the API at startup.
-- Cloud Storage stores optional portfolio assets. The API issues short-lived signed upload URLs; the bucket stays private.
-- GKE hosts API and web Deployments. Helm provides probes, rolling updates, CPU/memory requests and limits, HPA, PDB, Kubernetes ServiceAccounts, NetworkPolicy and ingress.
-- Cloud SQL Auth Proxy runs as a sidecar in each API pod and connects to the instance over private IP. The pod's Kubernetes ServiceAccount is mapped to a Google service account through Workload Identity.
-- Cloud Build tests and builds immutable container images, pushes them to Artifact Registry, and promotes those image tags in Git. Argo CD reconciles the Helm release from Git.
+- **Web:** React SPA built and served by Nginx.
+- **API:** Node.js/Express REST service with bcrypt password hashing, short-lived JWTs, ownership-scoped CRUD and validation.
+- **Database:** Cloud SQL for PostgreSQL. SQL migrations run from the API startup path.
+- **Assets:** Private Cloud Storage bucket; API issues short-lived signed upload URLs.
+- **GKE:** Web/API Deployments, Services and Ingress. Helm configures probes, rolling updates, resource requests/limits, HPA, PDB, ServiceAccounts and NetworkPolicy.
+- **Database connectivity:** Cloud SQL Auth Proxy sidecar uses private IP. The API Kubernetes ServiceAccount is mapped to a Google service account using Workload Identity.
+- **Delivery:** Cloud Build tests and builds commit-SHA images, pushes to Artifact Registry and commits image tags to Git. Argo CD reconciles the Helm release from Git.
 
-## Network boundaries
+## Architecture and delivery flow
 
-The VPC uses a custom subnet and separate secondary Pod and Service ranges. GKE worker nodes have private IPs and use Cloud NAT for controlled outbound access. The GKE control-plane endpoint is restricted to a trusted administrator CIDR. Cloud SQL has no public IPv4 address and is exposed only through private service access. Cloud Storage has uniform bucket-level access and Public Access Prevention.
+```mermaid
+flowchart TB
+    User[Portfolio owner / visitor] --> LB[HTTPS load balancer]
+    LB --> Web[React SPA / Nginx]
+    Web -->|REST| API[Node.js API]
+    API --> SQL[(Private Cloud SQL)]
+    API --> GCS[(Private Cloud Storage)]
+    API -.->|Cloud SQL Auth Proxy sidecar| SQL
+    Dev[Developer] --> Git[GitHub main]
+    Git --> CB[Cloud Build: test and build]
+    CB --> AR[Artifact Registry: SHA images]
+    CB -->|image tag promotion commit| Git
+    Git --> Argo[Argo CD]
+    Argo -->|Helm reconcile| GKE[GKE private nodes]
+    TF[Terraform] --> VPC[VPC, NAT, IAM, GKE, SQL, GCS]
+    TF --> GKE
+    TF --> SQL
+```
+
+## Network and security boundaries
+
+- Custom VPC/subnet with separate Pod and Service secondary ranges.
+- Private GKE nodes use Cloud NAT for controlled egress; control-plane access is restricted to a trusted administrator CIDR.
+- Cloud SQL has private IP only through private service access.
+- Cloud Storage uses uniform bucket-level access and Public Access Prevention.
+- API workload identity is separate from node and Cloud Build identities.
 
 ## Resilience and scaling
 
-Kubernetes readiness/liveness probes prevent unhealthy pods receiving traffic and detect failed processes. Rolling updates set maxUnavailable=0. API and web HPA scale on CPU utilization; the node pool has cluster autoscaling. PodDisruptionBudgets protect minimum serving capacity during voluntary disruptions. Cloud SQL automated backups and point-in-time recovery are enabled; restore testing remains an operator responsibility.
+Readiness/liveness probes gate traffic and detect process failures. Rolling updates use `maxUnavailable=0`; API and web HPAs scale on CPU, while node-pool autoscaling manages VM capacity. PDBs protect availability during voluntary disruptions. Cloud SQL backups/PITR and bucket versioning are configured, but restore testing is an operator task.
+
+## Validation versus deployment
+
+GitHub Actions validates source, Docker builds, Terraform and Helm rendering. Cloud Build publishes/promotes images; Argo CD deploys them. These definitions and green validation checks do not by themselves prove that GCP resources were provisioned or a live rollout succeeded.
