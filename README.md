@@ -98,7 +98,7 @@ To run API checks directly:
 
 ```bash
 cd api
-npm install
+npm ci
 npm test
 npm run check
 ```
