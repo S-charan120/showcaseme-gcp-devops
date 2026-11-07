@@ -57,6 +57,8 @@ jobs:
           assert "$API_IMAGE" in check and "$WEB_IMAGE" in check, "Cloud Build shell image variables must be escaped from substitutions"
           assert "$API_IMAGE" in api and "$WEB_IMAGE" in web, "build/push scripts must use escaped image variables"
           assert "$GITHUB_TOKEN" in promote and "$AUTH_HEADER" in promote, "secret/token shell variables must be escaped"
+          assert r"tr -d '\\n'" in promote, "authorization header must remove literal newline characters"
+          assert r"tr -d '\\\\n'" not in promote, "authorization header must not delete backslashes and the letter n"
           assert "$2" in promote and "$CURRENT_API_SHA" in promote, "awk and current-image shell variables must be escaped"
           assert "CURRENT_MAIN_SHA" in promote and "git rev-parse origin/main" in promote, "only current main revision may promote"
           assert "$CURRENT_MAIN_SHA" in promote and "$PROMOTED_SHA" in promote, "current main and promotion shell variables must be escaped"
