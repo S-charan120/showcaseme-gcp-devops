@@ -8,7 +8,7 @@
 
 > A portfolio-building and publishing application with a GCP delivery platform built around GKE, Terraform, Cloud Build and Argo CD.
 
-Showcaseme lets a professional bring their profile, experience, skills and selected projects together in a public portfolio. The platform code defines the GCP infrastructure and container delivery workflow, with Git as the deployment source of truth. The documented GCP environment is a deployment blueprint and has not yet been provisioned.
+Showcaseme lets a professional bring their profile, experience, skills and selected projects together in a public portfolio. The platform code defines the GCP infrastructure and container delivery workflow, with Git as the deployment source of truth.
 
 ## Application
 
@@ -143,4 +143,4 @@ See [docs/runbook.md](docs/runbook.md), [docs/troubleshooting.md](docs/troublesh
 
 ## Scope and status
 
-This is a hands-on portfolio implementation and deployment blueprint. No GCP resources have been provisioned by publishing the repository. Before public production use, configure real project values, DNS and TLS, secret-manager integration, branch protection, workload security tests, dependency/image scanning, and restore drills. The example does not claim a compliance certification or a live production service.
+This is a hands-on portfolio implementation. Before operating a public environment, configure project values, DNS and TLS, secret-manager integration, branch protection, workload security tests, dependency/image scanning, and restore drills.
