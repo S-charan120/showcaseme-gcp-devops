@@ -70,7 +70,7 @@ steps:
       - -ceu
       - |
         apk add --no-cache git
-        AUTH_HEADER=$$(printf 'x-access-token:%s' "$$GITHUB_TOKEN" | base64 | tr -d '\\n')
+        AUTH_HEADER=$$(printf 'x-access-token:%s' "$$GITHUB_TOKEN" | base64 | tr -d '\n')
         git -c http.extraheader="AUTHORIZATION: basic $$AUTH_HEADER" clone https://github.com/S-charan120/showcaseme-gcp-devops.git /workspace/gitops
         cd /workspace/gitops
         git fetch origin main
