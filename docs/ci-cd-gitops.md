@@ -4,10 +4,10 @@
 
 1. A Cloud Build trigger watches application and CI paths on main. API dependencies are installed with `npm install` because this repository does not commit an API package lockfile; CI resolves the declared semver ranges at build time.
 2. API tests and syntax checks must pass before image builds.
-3. Docker builds the API and React/Nginx images and tags both with the source commit SHA.
-4. Cloud Build pushes immutable image tags to Artifact Registry.
+3. Docker builds the API and React/Nginx images and tags both with the full 40-character source commit SHA (`$COMMIT_SHA`).
+4. Cloud Build checks whether each immutable Artifact Registry tag already exists. It builds and pushes only missing images, so rerunning a partially completed build safely reuses images already published for that commit.
 5. A dedicated GitHub App installation token is read from Secret Manager. The pipeline updates both image tags in the Git-managed production Helm values file and pushes a promotion commit.
-6. Argo CD tracks the repository path and automatically reconciles Helm to GKE.
+6. The promotion step confirms the build SHA is still the current `main` revision, checks the current production tags and Git ancestry, and skips stale builds so older runs cannot roll production image tags backwards; Argo CD tracks the repository path and automatically reconciles Helm to GKE.
 
 ## Required trigger settings
 

@@ -30,6 +30,40 @@ jobs:
       - name: Validate local Markdown links
         run: python3 scripts/check-markdown-links.py
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Cloud Build release configuration
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML
+          python - <<'PY'
+          import yaml
+          with open("ci/cloudbuild.yaml", encoding="utf-8") as handle:
+              config = yaml.safe_load(handle)
+          steps = config["steps"]
+          by_id = {step["id"]: step for step in steps}
+          expected = ("api-tests", "check-existing-images", "build-push-api", "build-push-web", "promote-gitops")
+          assert tuple(step["id"] for step in steps) == expected, "unexpected Cloud Build step order or duplicate publish steps"
+          assert "images" not in config, "do not combine explicit docker push with top-level images auto-publication"
+          check = "\n".join(by_id["check-existing-images"]["args"])
+          api = "\n".join(by_id["build-push-api"]["args"])
+          web = "\n".join(by_id["build-push-web"]["args"])
+          promote = "\n".join(by_id["promote-gitops"]["args"])
+          assert "gcloud artifacts docker images describe" in check, "immutable image tags must be checked before publish"
+          assert api.count("docker push") == 1 and web.count("docker push") == 1, "each image must have exactly one conditional push"
+          assert all("COMMIT_SHA" in "\n".join(step.get("env", [])) for step in (by_id["check-existing-images"], by_id["build-push-api"], by_id["build-push-web"])), "images must use full source commit SHA tags"
+          assert "git merge-base --is-ancestor" in promote, "stale builds must not roll back a newer GitOps promotion"
+          assert "$API_IMAGE" in check and "$WEB_IMAGE" in check, "Cloud Build shell image variables must be escaped from substitutions"
+          assert "$API_IMAGE" in api and "$WEB_IMAGE" in web, "build/push scripts must use escaped image variables"
+          assert "$GITHUB_TOKEN" in promote and "$AUTH_HEADER" in promote, "secret/token shell variables must be escaped"
+          assert "$2" in promote and "$CURRENT_API_SHA" in promote, "awk and current-image shell variables must be escaped"
+          assert "CURRENT_MAIN_SHA" in promote and "git rev-parse origin/main" in promote, "only current main revision may promote"
+          assert "$CURRENT_MAIN_SHA" in promote and "$PROMOTED_SHA" in promote, "current main and promotion shell variables must be escaped"
+          assert "$PROMOTED_SHA" in promote, "promotion shell variable must be escaped"
+          print("Cloud Build YAML parses; full-SHA publication, retry-safe immutable tags, single push path and stale-promotion guard are present.")
+          PY
+
       - name: Test and check API
         working-directory: api
         run: |
@@ -69,8 +103,43 @@ jobs:
         with:
           version: "v3.16.4"
 
-      - name: Lint Helm chart
-        run: helm lint deploy/helm/showcaseme --values deploy/helm/showcaseme/values-prod.yaml
+      - name: Lint Helm chart defaults
+        run: helm lint deploy/helm/showcaseme
 
-      - name: Render Helm manifests
-        run: helm template showcaseme deploy/helm/showcaseme --namespace showcaseme --values deploy/helm/showcaseme/values-prod.yaml > /tmp/showcaseme-rendered.yaml
+      - name: Render and validate every Helm values configuration
+        run: |
+          set -euo pipefail
+          CHART=deploy/helm/showcaseme
+          helm template showcaseme "$CHART" --namespace showcaseme > /tmp/showcaseme-default.yaml
+          for overlay in values-staging.yaml values-prod.yaml; do
+            helm lint "$CHART" --values "$CHART/$overlay"
+            output="/tmp/showcaseme-${overlay%.yaml}.yaml"
+            helm template showcaseme "$CHART" --namespace showcaseme --values "$CHART/$overlay" > "$output"
+          done
+          helm template showcaseme "$CHART" --namespace showcaseme \
+            --set api.autoscaling.enabled=false \
+            --set web.autoscaling.enabled=false > /tmp/showcaseme-fixed-replicas.yaml
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for profile in ("default", "values-staging", "values-prod"):
+              rendered = Path(f"/tmp/showcaseme-{profile}.yaml").read_text(encoding="utf-8")
+              documents = [doc for doc in rendered.split("---")]
+              deployments = [doc for doc in documents if "kind: Deployment" in doc.splitlines()]
+              hpas = [doc for doc in documents if "kind: HorizontalPodAutoscaler" in doc.splitlines()]
+              assert len(deployments) == 2, f"{profile}: expected API and web Deployments"
+              assert len(hpas) == 2, f"{profile}: expected API and web HPAs"
+              assert all(not any(line.strip().startswith("replicas:") for line in doc.splitlines()) for doc in deployments), (
+                  f"{profile}: HPA-enabled Deployment must not set spec.replicas"
+              )
+          fixed = Path("/tmp/showcaseme-fixed-replicas.yaml").read_text(encoding="utf-8")
+          fixed_documents = [doc for doc in fixed.split("---") if doc.strip()]
+          fixed_deployments = [doc for doc in fixed_documents if "kind: Deployment" in doc.splitlines()]
+          fixed_hpas = [doc for doc in fixed_documents if "kind: HorizontalPodAutoscaler" in doc.splitlines()]
+          assert len(fixed_deployments) == 2, "fixed-replica mode: expected API and web Deployments"
+          assert not fixed_hpas, "fixed-replica mode: HPAs must be disabled"
+          assert (
+              all(any(line.strip() == "replicas: 2" for line in doc.splitlines()) for doc in fixed_deployments)
+          ), "fixed-replica mode: api/web replicaCount defaults must render"
+          print("Default/staging/production HPA mode and fixed-replica mode rendered and validated.")
+          PY

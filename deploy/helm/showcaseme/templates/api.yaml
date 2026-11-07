@@ -6,7 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/name: showcaseme-api
 spec:
+  {{- if not .Values.api.autoscaling.enabled }}
   replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
   revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate

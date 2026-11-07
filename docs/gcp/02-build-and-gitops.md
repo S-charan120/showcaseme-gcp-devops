@@ -9,11 +9,11 @@ Terraform creates the `showcaseme-images` Docker repository. The Cloud Build ser
 The image path follows this format:
 
 ```text
-REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/api:COMMIT_SHA
-REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/web:COMMIT_SHA
+REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/api:FULL_COMMIT_SHA
+REGION-docker.pkg.dev/PROJECT_ID/showcaseme-images/web:FULL_COMMIT_SHA
 ```
 
-The Terraform-managed Docker repository enforces immutable tags. Do not use `latest` as a production release identifier.
+The Terraform-managed Docker repository enforces immutable tags. Cloud Build uses the full source commit SHA (`$COMMIT_SHA`) rather than the seven-character `$SHORT_SHA`; it checks for an existing image before publishing so retries do not attempt to overwrite an immutable tag. Do not use `latest` as a production release identifier.
 
 ## 2. Configure the GitHub App token
 
@@ -36,7 +36,7 @@ The exclusion for `deploy/helm/**` matters. Cloud Build writes an image-promotio
 
 The checked-in production Helm values use `bootstrap` tags as placeholders. After the trigger and GitHub App secret are configured, use the Cloud Build trigger's **Run** action against branch `main` once.
 
-Wait for the build to test the API, build and push both images to Artifact Registry, and commit the resulting source commit SHA tags to `deploy/helm/showcaseme/values-prod.yaml`. Confirm that both production image tags are no longer `bootstrap` and that the tagged images exist in Artifact Registry before the first Argo CD sync. This avoids an initial `ImagePullBackOff` caused by trying to pull placeholder tags.
+Wait for the build to test the API, build and push any missing images to Artifact Registry, and commit the resulting full source commit SHA tags to `deploy/helm/showcaseme/values-prod.yaml`. Confirm that both production image tags are no longer `bootstrap` and that the tagged images exist in Artifact Registry before the first Argo CD sync. This avoids an initial `ImagePullBackOff` caused by trying to pull placeholder tags.
 
 ## 5. Install Argo CD
 
