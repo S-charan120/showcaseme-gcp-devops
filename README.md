@@ -19,7 +19,7 @@ Showcaseme lets a professional bring their profile, experience, skills and selec
 - Render published portfolios through the shareable `?portfolio=<slug>` URL parameter.
 - API includes an authenticated endpoint for requesting short-lived Cloud Storage upload URLs. The web editor does not yet include an image-upload interface.
 
-The API stores account and portfolio data in PostgreSQL. The API package does not currently commit `package-lock.json`, so its documented `npm install` resolves package ranges at install time; frontend installs use the committed web lockfile. The Cloud Storage bucket is private; the API signs short-lived upload URLs using its GKE workload identity.
+The API stores account and portfolio data in PostgreSQL. Neither the API nor web package currently commits a `package-lock.json`; npm resolves declared version ranges during installs. CI and Cloud Build use `npm install` (not `npm ci`) for this GCP variant. Lockfiles and pinned dependency resolution remain a reproducibility improvement. The Cloud Storage bucket is private; the API signs short-lived upload URLs using its GKE workload identity.
 
 ## Architecture
 
