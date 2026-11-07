@@ -64,19 +64,29 @@ Cloud Build publishes images and updates the image tags in Git. Argo CD performs
 ├── api/
 │   ├── migrations/
 │   ├── src/
-│   └── test/
+│   ├── test/
+│   ├── Dockerfile
+│   └── package.json
 ├── web/
-│   └── src/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── nginx*.conf
+│   └── package.json
 ├── infra/terraform/
+│   ├── backend.tf.example
 │   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
 │   ├── iam.tf
-│   └── monitoring.tf
+│   ├── monitoring.tf
+│   ├── outputs.tf
+│   ├── variables.tf
+│   ├── versions.tf
+│   └── terraform.tfvars.example
 ├── deploy/
-│   ├── argocd/
+│   ├── argocd/application.yaml
 │   └── helm/showcaseme/
 ├── ci/cloudbuild.yaml
+├── scripts/check-markdown-links.py
+├── docker-compose.yml
 └── docs/
 ```
 
