@@ -104,7 +104,8 @@ jobs:
           fixed_hpas = [doc for doc in fixed_documents if "kind: HorizontalPodAutoscaler" in doc.splitlines()]
           assert len(fixed_deployments) == 2, "fixed-replica mode: expected API and web Deployments"
           assert not fixed_hpas, "fixed-replica mode: HPAs must be disabled"
-          assert all(any(line.strip() == "replicas: 2" for line in doc.splitlines()) for doc in fixed_deployments),
-              "fixed-replica mode: api/web replicaCount defaults must render"
+          assert (
+              all(any(line.strip() == "replicas: 2" for line in doc.splitlines()) for doc in fixed_deployments)
+          ), "fixed-replica mode: api/web replicaCount defaults must render"
           print("Default/staging/production HPA mode and fixed-replica mode rendered and validated.")
           PY
