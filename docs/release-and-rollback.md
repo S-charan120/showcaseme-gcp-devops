@@ -2,7 +2,7 @@
 
 ## Release identity
 
-Every API and web image is tagged with the source commit SHA. Deployments do not use the mutable latest tag. Cloud Build first tests the API, builds and pushes both images, then updates both production image tags in the Helm values file using a narrowly scoped GitHub App token stored in Secret Manager.
+Every API and web image is tagged with the full 40-character source commit SHA (`$COMMIT_SHA`). Deployments do not use the mutable latest tag. Cloud Build first tests the API, reuses any immutable images already published for the source commit, builds and publishes missing images exactly once, then updates both production image tags in the Helm values file using a narrowly scoped GitHub App token stored in Secret Manager.
 
 ## Approval and promotion
 

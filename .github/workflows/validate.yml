@@ -30,6 +30,33 @@ jobs:
       - name: Validate local Markdown links
         run: python3 scripts/check-markdown-links.py
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Cloud Build release configuration
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML
+          python - <<'PY'
+          import yaml
+          with open("ci/cloudbuild.yaml", encoding="utf-8") as handle:
+              config = yaml.safe_load(handle)
+          steps = config["steps"]
+          by_id = {step["id"]: step for step in steps}
+          expected = ("api-tests", "check-existing-images", "build-push-api", "build-push-web", "promote-gitops")
+          assert tuple(step["id"] for step in steps) == expected, "unexpected Cloud Build step order or duplicate publish steps"
+          assert "images" not in config, "do not combine explicit docker push with top-level images auto-publication"
+          check = "\n".join(by_id["check-existing-images"]["args"])
+          api = "\n".join(by_id["build-push-api"]["args"])
+          web = "\n".join(by_id["build-push-web"]["args"])
+          promote = "\n".join(by_id["promote-gitops"]["args"])
+          assert "gcloud artifacts docker images describe" in check, "immutable image tags must be checked before publish"
+          assert api.count("docker push") == 1 and web.count("docker push") == 1, "each image must have exactly one conditional push"
+          assert all("COMMIT_SHA" in "\n".join(step.get("env", [])) for step in (by_id["check-existing-images"], by_id["build-push-api"], by_id["build-push-web"])), "images must use full source commit SHA tags"
+          assert "git merge-base --is-ancestor" in promote, "stale builds must not roll back a newer GitOps promotion"
+          print("Cloud Build YAML parses; full-SHA publication, retry-safe immutable tags, single push path and stale-promotion guard are present.")
+          PY
+
       - name: Test and check API
         working-directory: api
         run: |
