@@ -23,4 +23,4 @@
 - Enable audit logs, access reviews, log retention, vulnerability response, restore drills and periodic IAM review.
 - Add integration, end-to-end, load and penetration tests. Validate HPA thresholds and Cloud SQL capacity using realistic workload profiles.
 
-The repository contains production-oriented platform patterns; it does not certify regulatory compliance or prove a live deployment. Security testing, operational ownership, monitoring destinations, DNS/TLS and cloud restore drills must be completed in your environment.
+These platform patterns are not a regulatory compliance certification. Complete security testing, operational ownership, monitoring destinations, DNS/TLS and cloud restore drills for your environment.
