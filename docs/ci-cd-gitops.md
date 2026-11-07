@@ -2,7 +2,7 @@
 
 ## Build sequence
 
-1. A Cloud Build trigger watches application and CI paths on main.
+1. A Cloud Build trigger watches application and CI paths on main. API dependencies are installed with `npm install` because this repository does not commit an API package lockfile; CI resolves the declared semver ranges at build time.
 2. API tests and syntax checks must pass before image builds.
 3. Docker builds the API and React/Nginx images and tags both with the source commit SHA.
 4. Cloud Build pushes immutable image tags to Artifact Registry.
