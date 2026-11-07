@@ -21,9 +21,9 @@ flowchart TB
     User[Portfolio owner / visitor] --> LB[HTTPS load balancer]
     LB --> Web[React SPA / Nginx]
     Web -->|REST| API[Node.js API]
-    API --> SQL[(Private Cloud SQL)]
+    API -->|localhost:5432| Proxy[Cloud SQL Auth Proxy sidecar]
+    Proxy -->|private IP / TLS| SQL[(Private Cloud SQL)]
     API --> GCS[(Private Cloud Storage)]
-    API -.->|Cloud SQL Auth Proxy sidecar| SQL
     Dev[Developer] --> Git[GitHub main]
     Git --> CB[Cloud Build: test and build]
     CB --> AR[Artifact Registry: SHA images]
